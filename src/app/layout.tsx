@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   keywords: ['CRM imobiliário', 'IMOVAI', 'corretor', 'IA imobiliária', 'Litoral Norte SC'],
   authors: [{ name: 'Jorge Miguel Imóveis' }],
   openGraph: {
-    title: 'IMOVAI OS v10',
+    title: 'IMOVAI OS v11',
     description: 'Sistema Operacional do Corretor Imobiliário',
     type: 'website',
   },

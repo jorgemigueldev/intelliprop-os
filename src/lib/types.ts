@@ -74,26 +74,38 @@ export interface Lead {
 }
 
 export interface Property {
-  id:         number;
-  code:       string;
-  title:      string;
-  city:       string;
-  type:       string;
-  price:      number;
-  area:       number;
-  bedrooms:   number;
-  beach:      string;
-  airbnb:     boolean;
-  status:     'disponível' | 'reservado' | 'vendido';
-  views:      number;
-  matches:    number;
-  yield:      number;
-  commission: number;
-  photo:      string;
-  highlight:  string;
-  iptu:       number;
-  condo:      number;
-  features:   string[];
+  id:          number;
+  code:        string;
+  title:       string;
+  city:        string;
+  type:        string;
+  price:       number;
+  area:        number;
+  bedrooms:    number;
+  beach:       string;
+  airbnb:      boolean;
+  status:      'disponível' | 'reservado' | 'vendido';
+  views:       number;
+  matches:     number;
+  yield:       number;
+  commission:  number;
+  photo:       string;
+  photos:      string[];
+  highlight:   string;
+  iptu:        number;
+  condo:       number;
+  features:    string[];
+  description: string;
+  address:     string;
+  developer:   string;
+  launchDate:  string;
+  units:       number;
+  totalUnits:  number;
+  lat:         number;
+  lng:         number;
+  videoUrl:    string | null;
+  tag:         string;
+  tagColor:    string;
 }
 
 export interface Message {
@@ -233,3 +245,6 @@ export interface Toast {
   msg:   string;
   color: string;
 }
+
+// ── Property extendida v11 ────────────────────────────────────────────
+declare module './types' {}
