@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════
-//  IMOVAI ENGINE v10.0 — 50+ Funções de IA · TypeScript Puro
-//  Zero recursão · Testável · OpenAI-ready · NestJS-ready
-//  Baseado em: Salesforce Einstein · HubSpot Breeze · Gong.io ·
-//  Reapit · Follow Up Boss · LionDesk · kvCORE · Propertybase
+//  IMOVAI ENGINE v12.0 — 70+ Funções IA · TypeScript Puro
+//  Zero recursão · Testável · OpenAI-ready · Vercel-ready
+//  Ref: Salesforce Einstein · HubSpot Breeze · Gong.io · Reapit
+//       Follow Up Boss · LionDesk · kvCORE · Propertybase · Chime
 // ═══════════════════════════════════════════════════════════════════════
 
 import type {
@@ -16,26 +16,27 @@ import { PROPERTIES } from './data';
 
 // ─────────────────────────────────────────────────────────────────────
 // MÓDULO 2.1 — INTELIGÊNCIA PREDITIVA
-// Salesforce Einstein + HubSpot Breeze
 // ─────────────────────────────────────────────────────────────────────
 
 export function computeEinsteinScore(lead: Lead): number {
   let score = lead.score || 0;
-  if (lead.budgetNum > 500000)      score += 25;
-  else if (lead.budgetNum > 300000) score += 15;
-  else if (lead.budgetNum > 150000) score += 8;
-  else                              score += 3;
+  if (lead.budgetNum >= 1000000)     score += 30;
+  else if (lead.budgetNum >= 500000) score += 22;
+  else if (lead.budgetNum >= 300000) score += 14;
+  else                               score += 6;
 
-  score += Math.min((lead.behavioralData?.siteVisits || 0) * 2, 12);
-  score += Math.min((lead.behavioralData?.linkClicks || 0) * 3, 15);
-  if ((lead.behavioralData?.emailOpenRate || 0) > 0.8) score += 12;
+  score += Math.min((lead.behavioralData?.siteVisits || 0) * 2, 14);
+  score += Math.min((lead.behavioralData?.linkClicks || 0) * 3, 18);
+  if ((lead.behavioralData?.emailOpenRate || 0) > 0.8)  score += 12;
+  if ((lead.behavioralData?.averageTimeOnSite || 0) > 300) score += 8;
 
-  if (lead.visitScheduled)                             score += 30;
-  if (lead.partnerMentioned)                           score += 12;
-  if (lead.fundingSimulated)                           score += 20;
-  if (lead.intent === 'investimento')                  score += 10;
-  if (lead.lifeEvent)                                  score += 15;
-  if ((lead.memory?.offersMade?.length || 0) > 0)     score += 25;
+  if (lead.visitScheduled)                              score += 30;
+  if (lead.partnerMentioned)                            score += 14;
+  if (lead.fundingSimulated)                            score += 20;
+  if (lead.intent === 'investimento')                   score += 12;
+  if (lead.lifeEvent)                                   score += 16;
+  if ((lead.memory?.offersMade?.length || 0) > 0)      score += 25;
+  if ((lead.sentimentTrend?.slice(-1)[0] || 0) > 80)   score += 10;
 
   return Math.min(Math.round(score), 99);
 }
@@ -48,408 +49,482 @@ export function computeBreezeScore(lead: Lead): number {
     Math.min((lead.behavioralData?.linkClicks || 0) * 3, 15) +
     Math.min((lead.behavioralData?.siteVisits || 0) * 3, 15)
   );
-  const fit = (
-    (lead.visitScheduled   ? 15 : 0) +
-    (lead.fundingSimulated ? 10 : 0) +
-    (lead.partnerMentioned ?  5 : 0)
-  );
-  return Math.min(99, Math.round(recency + engagement + fit));
+  const intent  = lead.intent === 'investimento' ? 15 : 10;
+  const budget  = lead.budgetNum >= 500000 ? 10 : lead.budgetNum >= 300000 ? 6 : 3;
+  return Math.min(Math.round(recency + engagement + intent + budget), 99);
 }
 
 export function leadTemperature(score: number): Temperature {
-  if (score >= 85) return 'hot';
-  if (score >= 55) return 'warm';
+  if (score >= 82) return 'hot';
+  if (score >= 58) return 'warm';
   return 'cold';
 }
 
 export function behavioralScore(data: Lead['behavioralData']): number {
   if (!data) return 0;
-  return Math.min(Math.round(
-    (data.emailOpenRate || 0) * 30 +
-    (data.linkClicks    || 0) * 4 +
-    (data.siteVisits    || 0) * 5 +
-    Math.min((data.averageTimeOnSite || 0) / 30, 15)
-  ), 99);
+  let s = 0;
+  if (data.siteVisits > 6)         s += 20;
+  if (data.linkClicks > 8)         s += 18;
+  if (data.averageTimeOnSite > 300) s += 22;
+  if (data.emailOpenRate > 0.75)   s += 12;
+  if ((data.objectionHistory?.length || 0) > 0) s += 8;
+  return Math.min(s, 80);
 }
 
-export function predictCloseDate(lead: Lead): string {
-  const score = computeEinsteinScore(lead);
-  const temp  = leadTemperature(score);
-  if (lead.closingProbability > 0.85 && temp === 'hot')  return '3–5 dias';
-  if (lead.closingProbability > 0.65 && temp === 'warm') return '7–14 dias';
-  if (lead.closingProbability > 0.40)                    return '15–30 dias';
-  return '+60 dias';
+export function sentimentScore(trend: number[] | undefined): number {
+  if (!trend || trend.length === 0) return 50;
+  const last = trend[trend.length - 1];
+  const avg  = trend.reduce((a, b) => a + b, 0) / trend.length;
+  return Math.round((last * 0.7) + (avg * 0.3));
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // MÓDULO 2.2 — INTELIGÊNCIA CONVERSACIONAL
-// Gong.io Conversation Intelligence
 // ─────────────────────────────────────────────────────────────────────
 
-const INTENT_SIGNALS = [
-  'quando posso visitar','quero agendar','vou comprar','fechar semana',
-  'minha esposa adorou','gostamos muito','quando assinar','como é o contrato',
-  'quero fechar','data de entrega','quero comprar','tenho o dinheiro',
-  'posso financiar','aprovado no banco','tenho entrada','aceito a proposta',
-  'mande o contrato','pode preparar','vamos fechar','quanto dá a parcela',
-  'prefiro esse','já decidi','é exatamente o que','vamos marcar',
+const BUYING_SIGNALS = [
+  'minha esposa adorou','adorei','quero fechar','podemos discutir',
+  'aceita proposta','fechar negócio','quando posso','topo pagar',
+  'fazendo a proposta','vou falar com meu contador','minha família gostou',
+  'vou verificar o financiamento','qual a entrada mínima','pode reservar',
+  'quando assino','vamos marcar visita','manda o contrato','faz a proposta',
 ];
 
-export function detectBuyingIntent(text: string): boolean {
-  if (!text) return false;
-  const t = text.toLowerCase();
-  return INTENT_SIGNALS.some(s => t.includes(s));
-}
-
-const OBJECTION_PATTERNS: Record<string, string[]> = {
-  preço:         ['caro','preço alto','além do orçamento','não tenho esse valor','muito caro','não cabe no bolso'],
-  prazo:         ['muito longe','prazo longo','demorando','não quero esperar','entrega distante'],
-  localização:   ['longe','localização','fica longe','muito distante','não conheço a região'],
-  financiamento: ['banco não aprovou','financiamento','crédito','score baixo','juros altos'],
-  tamanho:       ['muito pequeno','espaço','m²','área pequena','apertado','não cabe'],
-  duvida:        ['preciso pensar','ver outras opções','não tenho certeza','vou analisar'],
-  concorrente:   ['outro corretor','outra imobiliária','achei mais barato','vi num portal'],
-  documentação:  ['documentação','escritura','matrícula','regularização','IPTU atrasado'],
-  condominio:    ['condomínio muito alto','taxa de condomínio','muita taxa'],
+const OBJECTIONS: Record<string, string> = {
+  'caro':'preço', 'muito alto':'preço', 'não tenho':'capital',
+  'juros':'financiamento', 'taxa':'financiamento', 'entrada alta':'capital',
+  'longe':'localização', 'distante':'localização',
+  'apertado':'dimensão', 'pequeno':'dimensão',
+  'vou pensar':'indecisão', 'preciso pensar':'indecisão',
+  'minha mulher':'decisor', 'meu marido':'decisor',
+  'prazo':'entrega', 'quando entrega':'entrega',
 };
+
+export function detectBuyingIntent(text: string): boolean {
+  const t = text.toLowerCase();
+  return BUYING_SIGNALS.some(s => t.includes(s));
+}
 
 export function detectObjection(text: string): string | null {
-  if (!text) return null;
   const t = text.toLowerCase();
-  for (const [type, patterns] of Object.entries(OBJECTION_PATTERNS)) {
-    if (patterns.some(p => t.includes(p))) return type;
-  }
-  return null;
+  const key = Object.keys(OBJECTIONS).find(k => t.includes(k));
+  return key ? OBJECTIONS[key] : null;
 }
 
-const COUNTER_SCRIPTS: Record<string, (l: Lead) => string> = {
-  preço:        l => l.intent === 'investimento'
-    ? `Entendo! Esse imóvel gera yield até 13% ao ano — em 8 anos você recupera 100% do valor. Posso mostrar a simulação?`
-    : `Com entrada de ${l.entry} e financiamento CEF, a parcela fica abaixo de 30% da sua renda. Posso simular agora?`,
-  prazo:        () => `Tenho imóveis prontos para morar que atendem melhor. Posso mostrar?`,
-  localização:  () => `Posso mostrar o mapa de acesso — a maioria dos clientes se surpreende com a proximidade a serviços.`,
-  financiamento: l => `Trabalhamos com correspondentes que aprovam mesmo com score mais baixo. Posso agendar pré-análise gratuita para ${l.name.split(' ')[0]}?`,
-  tamanho:      () => `Esse imóvel tem planta inteligente — na visita parece muito maior. Posso mostrar o tour virtual?`,
-  duvida:       l => `Natural analisar bem! Posso deixar a proposta por escrito para ${l.name.split(' ')[0]}?`,
-  concorrente:  () => `Posso preparar comparação detalhada. O que mais importa na decisão — localização, preço ou rentabilidade?`,
-  documentação: () => `Toda a documentação está 100% regularizada. Posso enviar a matrícula atualizada imediatamente.`,
-  condominio:   () => `O condomínio inclui piscina, segurança 24h e lazer completo. Por m², é muito competitivo para a região.`,
-};
-
-export function objectionCounterscript(objection: string, lead: Lead): string {
-  const fn = COUNTER_SCRIPTS[objection];
-  return fn ? fn(lead) : `Entendo sua preocupação. Posso ajudar a encontrar a melhor solução para ${lead.name.split(' ')[0]}.`;
+export function objectionCounterscript(objection: string | null, lead: Lead): string {
+  if (!objection) return '';
+  if (objection === 'preço' || objection === 'capital') {
+    if (lead.intent === 'investimento')
+      return `Este imóvel gera yield de ${lead.code ? '14,5%' : '12%'} ao ano — em 7 anos ele se paga. Posso mostrar a simulação completa?`;
+    return `Posso simular um financiamento com a Caixa a partir de R$ 1.800/mês. Quer ver se encaixa no seu perfil?`;
+  }
+  if (objection === 'financiamento')
+    return `Taxa atual 10,5% a.a. + IPCA. Tenho condição especial pelo Minha Casa Minha Vida. Faço a simulação gratuitamente?`;
+  if (objection === 'localização')
+    return `O bairro valoriza 18% ao ano e a praia fica a ${lead.code ? '20m' : '100m'} — o acesso mais do que compensa. Vamos fazer uma visita antes de decidir?`;
+  if (objection === 'indecisão')
+    return `Entendo! Uma boa decisão requer reflexão. Enquanto isso, posso reservar a unidade por 48h? As melhores unidades costumam ir rápido.`;
+  if (objection === 'decisor')
+    return `Claro! Que tal uma visita juntos no final de semana? Trago toda a documentação e um book completo para facilitar a conversa.`;
+  if (objection === 'entrega')
+    return `A entrega é em ${lead.code ? 'Dez/2025' : 'Jun/2026'} — tempo perfeito para planejar! E você já estaria protegido da valorização de agora até lá.`;
+  return `Entendo sua preocupação. Posso apresentar alternativas que se encaixam melhor no seu perfil?`;
 }
 
 export function analyzeConversation(messages: Message[]): ConversationAnalysis {
-  if (!messages?.length) return { score:50, trend:'neutro', label:'Neutro', talkRatio:'1.0', buyingSignals:0, objections:0, engagement:'baixo' };
-  const clientMsgs = messages.filter(m => m.from === 'client');
-  const agentMsgs  = messages.filter(m => ['agent','ai'].includes(m.from));
-  const sentMap: Record<string, number> = { muito_positivo:100, positivo:75, neutro:50, negativo:20 };
-  const scores = clientMsgs.map(m => sentMap[m.sentiment] ?? 50);
-  const avg    = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 50;
+  const texts = messages.map(m => m.text.toLowerCase()).join(' ');
+  const buyingSignals = BUYING_SIGNALS.filter(s => texts.includes(s)).length;
+  const objectionCount = Object.keys(OBJECTIONS).filter(k => texts.includes(k)).length;
+  const positiveWords = ['ótimo','perfeito','adorei','incrível','maravilhoso','top','excelente'].filter(w => texts.includes(w)).length;
+  const negativeWords = ['caro','difícil','problema','não consigo','não tenho'].filter(w => texts.includes(w)).length;
+  const score = Math.min(100, 50 + (buyingSignals * 12) + (positiveWords * 5) - (negativeWords * 8) - (objectionCount * 6));
   return {
-    score:         avg,
-    trend:         avg > 70 ? 'positivo' : avg > 40 ? 'neutro' : 'negativo',
-    label:         avg > 70 ? 'Positivo' : avg > 40 ? 'Neutro' : 'Negativo',
-    talkRatio:     (clientMsgs.length / Math.max(agentMsgs.length, 1)).toFixed(1),
-    buyingSignals: clientMsgs.filter(m => detectBuyingIntent(m.text)).length,
-    objections:    clientMsgs.filter(m => !!detectObjection(m.text)).length,
-    engagement:    clientMsgs.length > 3 ? 'alto' : clientMsgs.length > 1 ? 'médio' : 'baixo',
+    score,
+    label: score >= 75 ? 'Muito Positivo' : score >= 50 ? 'Positivo' : score >= 30 ? 'Neutro' : 'Negativo',
+    buyingSignals,
+    objections: objectionCount,
+    dominantEmotion: buyingSignals > 2 ? 'entusiasmo' : objectionCount > 1 ? 'resistência' : 'neutro',
+    nextStep: buyingSignals >= 2 ? '🚨 Proposta agora!' : objectionCount > 0 ? '🛡 Contornar objeção' : '💬 Nutrir engajamento',
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // MÓDULO 2.3 — INTELIGÊNCIA COMPORTAMENTAL
-// kvCORE + Chime + LionDesk
 // ─────────────────────────────────────────────────────────────────────
 
 export function leadReputation(lead: Lead): ReputationResult {
-  const e      = lead.behavioralData?.emailOpenRate || 0;
-  const clicks = lead.behavioralData?.linkClicks    || 0;
-  const visits = lead.behavioralData?.siteVisits    || 0;
-  if (e > 0.8 && clicks > 8) return { label:'Altamente Engajado', color:'#10B981', score:95 };
-  if (e > 0.5 || clicks > 4) return { label:'Engajado',           color:'#F59E0B', score:70 };
-  if (visits > 0)             return { label:'Explorando',         color:'#3B82F6', score:40 };
-  return                             { label:'Frio',               color:'#5A7090', score:15 };
+  const score = lead.qualityScore || computeEinsteinScore(lead);
+  if (score >= 85) return { tier:'A+', label:'Investor Prime', color:'#10B981', priority:1 };
+  if (score >= 70) return { tier:'A',  label:'Qualified Buyer', color:'#3B82F6', priority:2 };
+  if (score >= 55) return { tier:'B',  label:'Prospect',        color:'#F59E0B', priority:3 };
+  return { tier:'C', label:'Lead Nurturing', color:'#64748B', priority:4 };
 }
 
 export function icpMatch(lead: Lead): number {
   let score = 0;
-  if (lead.budgetNum > 250000)                              score += 25;
-  if (lead.intent === 'investimento')                       score += 20;
-  if ((lead.behavioralData?.siteVisits || 0) > 3)          score += 20;
-  if (lead.visitScheduled)                                  score += 20;
-  if (lead.source === 'indicacao')                          score += 15;
+  if (lead.budgetNum >= 500000)       score += 30;
+  else if (lead.budgetNum >= 300000)  score += 18;
+  else                                score += 6;
+  if (lead.intent === 'investimento') score += 20;
+  if (lead.incomeNum >= 15000)        score += 15;
+  if (lead.lifeEvent)                 score += 12;
+  if (lead.fundingSimulated)          score += 10;
+  if (['Balneário Piçarras','Penha','Barra Velha','Itapoá'].includes(lead.location)) score += 10;
+  if (lead.partnerMentioned)          score += 8;
   return Math.min(score, 100);
 }
 
-export function documentStatus(lead: Lead): { icon: string; label: string; color: string } | null {
-  if (!lead.documents?.length) return null;
-  const opened = lead.documents.find(d => d.status?.includes('x'));
-  if (opened) return { icon:'👁', label:`Proposta aberta ${opened.status}`, color:'#10B981' };
-  const sent  = lead.documents.find(d => d.status === 'enviado');
-  if (sent)   return { icon:'📄', label:'Documentos enviados',              color:'#3B82F6' };
-  return null;
+export function documentStatus(lead: Lead): string {
+  if (!lead.documents?.length) return '📋 Sem documentos';
+  const sent    = lead.documents.filter(d => d.status === 'enviado').length;
+  const pending = lead.documents.filter(d => d.status === 'pendente').length;
+  if (pending > 0) return `⏳ ${pending} pendente(s)`;
+  return `✅ ${sent} enviado(s)`;
+}
+
+export function dealVelocityScore(lead: Lead): number {
+  const v = lead.dealVelocity || 0;
+  const stages = ['novo','qualificado','agendado','visitou','proposta','fechado'];
+  const idx    = stages.indexOf(lead.status);
+  const days   = (Date.now() - (lead.lastMsgTs || Date.now())) / 86400000;
+  return Math.max(0, Math.min(10, (v * 2) + (idx * 0.5) - (days * 0.1)));
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // MÓDULO 2.4 — INTELIGÊNCIA IMOBILIÁRIA
-// Reapit + Propertybase
 // ─────────────────────────────────────────────────────────────────────
 
-export function propertyScore(lead: Lead, property: Property): number {
-  let score = 0;
-  if (lead.budgetNum >= property.price)           score += 30;
-  else if (lead.budgetNum >= property.price*0.90) score += 15;
-  if (lead.propertyType === property.type)        score += 25;
-  if (lead.location === property.city)            score += 20;
-  if (lead.intent === 'investimento' && property.airbnb) score += 15;
-  if (property.yield > 10)                        score += 10;
-  if ((lead.memory?.propertiesViewed || []).includes(property.code)) score += 15;
-  if (property.status === 'disponível')           score += 5;
-  return score;
-}
-
-export function recommendProperties(lead: Lead, limit = 3): (Property & { matchScore: number })[] {
-  return [...PROPERTIES]
-    .map(p => ({ ...p, matchScore: propertyScore(lead, p) }))
-    .filter(p => p.matchScore > 0)
-    .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, limit);
-}
-
-export function calculateInvestmentROI(property: Property): ROIResult | null {
-  if (!property || property.yield === 0) return null;
-  const annualRent  = property.price * (property.yield / 100);
-  const annualCost  = (property.condo || 0) * 12 + (property.iptu || 0);
-  const netIncome   = annualRent - annualCost;
-  return {
-    grossYield:   property.yield.toFixed(1),
-    netYield:     ((netIncome / property.price) * 100).toFixed(1),
-    monthlyRent:  Math.round(annualRent / 12),
-    paybackYears: (property.price / Math.max(netIncome, 1)).toFixed(1),
-    rating:       property.yield > 10 ? 'EXCELENTE' : property.yield > 7 ? 'BOM' : 'REGULAR',
-  };
-}
-
-const NEIGHBORHOOD_DB: Record<string, NeighborhoodInsights> = {
-  'Balneário Piçarras': { appreciation12m:12.3, appreciation24m:25.8, avgM2:8500,  demandScore:92, airbnbOccupancy:78 },
-  'Penha':              { appreciation12m:8.7,  appreciation24m:18.2, avgM2:6200,  demandScore:78, airbnbOccupancy:65 },
-  'Navegantes':         { appreciation12m:15.2, appreciation24m:32.5, avgM2:7500,  demandScore:95, airbnbOccupancy:82 },
-  'Barra Velha':        { appreciation12m:9.1,  appreciation24m:19.3, avgM2:7100,  demandScore:82, airbnbOccupancy:70 },
-  'Balneário Camboriú': { appreciation12m:18.5, appreciation24m:41.2, avgM2:18000, demandScore:99, airbnbOccupancy:91 },
-  'Itapoá':             { appreciation12m:22.1, appreciation24m:48.3, avgM2:5200,  demandScore:88, airbnbOccupancy:85 },
+const NEIGHBORHOODS: Record<string, NeighborhoodInsights> = {
+  'Balneário Piçarras': { appreciation12m:18, appreciation3y:64, airbnbOccupancy:82, avgM2:9200, infraScore:88, demandScore:91, investScore:89, supplyTrend:'escasso' },
+  'Penha':              { appreciation12m:22, appreciation3y:78, airbnbOccupancy:85, avgM2:8800, infraScore:86, demandScore:93, investScore:92, supplyTrend:'escasso' },
+  'Barra Velha':        { appreciation12m:16, appreciation3y:55, airbnbOccupancy:78, avgM2:7900, infraScore:82, demandScore:87, investScore:85, supplyTrend:'moderado' },
+  'Navegantes':         { appreciation12m:14, appreciation3y:48, airbnbOccupancy:74, avgM2:9600, infraScore:84, demandScore:85, investScore:83, supplyTrend:'moderado' },
+  'Itapoá':             { appreciation12m:24, appreciation3y:88, airbnbOccupancy:80, avgM2:7200, infraScore:80, demandScore:88, investScore:90, supplyTrend:'escasso' },
+  'Joinville':          { appreciation12m:12, appreciation3y:42, airbnbOccupancy:68, avgM2:8100, infraScore:92, demandScore:82, investScore:78, supplyTrend:'abundante' },
+  'Jaraguá do Sul':     { appreciation12m:11, appreciation3y:38, airbnbOccupancy:62, avgM2:7600, infraScore:88, demandScore:78, investScore:74, supplyTrend:'moderado' },
 };
 
 export function getNeighborhoodInsights(city: string): NeighborhoodInsights {
-  return NEIGHBORHOOD_DB[city] || { appreciation12m:10, appreciation24m:21, avgM2:7000, demandScore:70, airbnbOccupancy:65 };
+  return NEIGHBORHOODS[city] ?? {
+    appreciation12m:15, appreciation3y:52, airbnbOccupancy:75,
+    avgM2:8500, infraScore:80, demandScore:80, investScore:80, supplyTrend:'moderado',
+  };
 }
 
-export function generatePropertyDescription(property: Property, mode: 'vendas' | 'profissional' = 'vendas'): string {
+export function calculateInvestmentROI(property: Property): ROIResult | null {
+  if (!property.airbnb || !property.yield) return null;
+  const grossYield    = property.yield;
+  const expenses      = 0.28;
+  const netYield      = Math.round((grossYield * (1 - expenses)) * 10) / 10;
+  const monthlyRent   = Math.round(property.price * (grossYield / 100) / 12);
+  const annualRent    = monthlyRent * 12;
+  const netAnnual     = Math.round(annualRent * (1 - expenses));
+  const paybackYears  = Math.round(property.price / netAnnual);
+  const appreciation  = getNeighborhoodInsights(property.city).appreciation12m;
+  const totalReturn   = Math.round(grossYield + appreciation);
+  const rating        = totalReturn >= 30 ? '⭐ Investimento Excelente'
+                      : totalReturn >= 20 ? '✅ Bom Investimento'
+                      : '📊 Investimento Razoável';
+  return { grossYield, netYield, monthlyRent, netAnnual, paybackYears, totalReturn, rating, appreciation };
+}
+
+export function propertyScore(lead: Lead, property: Property): number {
+  let s = 0;
+  if (property.city === lead.location)                                 s += 32;
+  if (property.price <= lead.budgetNum)                               s += 28;
+  if (property.price <= lead.budgetNum * 1.15 && property.price >= lead.budgetNum * 0.7) s += 12;
+  if (lead.intent === 'investimento' && property.yield > 12)          s += 28;
+  if (lead.intent === 'investimento' && property.yield > 9)           s += 14;
+  if (lead.intent === 'investimento' && property.airbnb)              s += 12;
+  if (lead.intent === 'moradia' && property.bedrooms >= 2)            s += 18;
+  if (lead.intent === 'moradia' && property.bedrooms >= 3)            s += 10;
+  if (property.status === 'disponível')                               s += 6;
+  if (lead.memory?.propertiesViewed?.includes(property.code))         s += 16;
+  return s;
+}
+
+export function recommendProperties(lead: Lead): (Property & { matchScore: number })[] {
+  return [...PROPERTIES]
+    .map(p => ({ ...p, matchScore: propertyScore(lead, p) }))
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .filter(p => p.matchScore > 0);
+}
+
+export function generatePropertyDescription(
+  property: Property,
+  mode: 'vendas' | 'profissional' | 'airbnb' = 'vendas',
+): string {
   if (!property) return '';
-  if (mode === 'profissional') {
-    return `${property.title} | ${property.city}\n${property.area}m² · ${property.bedrooms > 0 ? `${property.bedrooms} dorm` : 'Studio'} · ${property.beach} do mar${property.airbnb ? ` · Airbnb ${property.yield}% a.a.` : ''}\nR$ ${(property.price/1000).toFixed(0)}k · Comissão R$ ${(property.commission/1000).toFixed(0)}k\n${property.highlight}`;
-  }
-  return `🏖 ${property.title}\n\n✅ ${property.area}m² | ${property.bedrooms > 0 ? `${property.bedrooms} dorms` : 'Studio'}\n📍 ${property.city} · ${property.beach} da praia\n💰 R$ ${(property.price/1000).toFixed(0)}k${property.airbnb ? `\n📊 Yield Airbnb: ${property.yield}% ao ano` : ''}\n⭐ ${property.highlight}\n\n📞 Jorge Miguel: (47) 98916-0113`;
+  const roi = calculateInvestmentROI(property);
+  const nb  = getNeighborhoodInsights(property.city);
+
+  if (mode === 'airbnb')
+    return `🏖 ${property.title} — ${property.beach} da praia em ${property.city}\n✨ ${property.area}m² | ${property.bedrooms > 0 ? property.bedrooms + ' dorms' : 'Studio'} | ${(property.features||[]).slice(0,3).join(' · ')}\n💰 Renda média: R$ ${roi ? (roi.monthlyRent/1000).toFixed(1) + 'k/mês' : 'consulte'} via Airbnb`;
+
+  if (mode === 'profissional')
+    return `${property.title} | ${property.city}\n${property.area}m² · ${property.bedrooms > 0 ? `${property.bedrooms} dorm` : 'Studio'} · ${property.beach} do mar${property.airbnb ? ` · Yield ${property.yield}% a.a.` : ''}\nR$ ${(property.price/1000).toFixed(0)}k · Comissão R$ ${(property.commission/1000).toFixed(0)}k\n${property.highlight}`;
+
+  // vendas — persuasivo
+  const urgency = property.units <= 2 ? `🔴 Apenas ${property.units} unidade(s) disponível!` : '';
+  const yieldInfo = roi ? `📊 Yield ${roi.netYield}% líquido · R$ ${(roi.monthlyRent/1000).toFixed(1)}k/mês · Retorno em ${roi.paybackYears} anos` : '';
+  return `✨ ${property.highlight}\n📍 ${property.city} · ${property.beach} da praia · +${nb.appreciation12m}% valorização/ano\n${yieldInfo}\n${urgency}`.trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // MÓDULO 2.5 — NEXT BEST ACTION ENGINE
-// Salesforce Einstein NBA
 // ─────────────────────────────────────────────────────────────────────
 
-export function weightedRevenue(lead: Lead): number {
+export function riskOfLoss(lead: Lead): 'alto' | 'médio' | 'baixo' | null {
+  const hours = (Date.now() - (lead.lastMsgTs || Date.now())) / 3600000;
   const temp  = leadTemperature(computeEinsteinScore(lead));
-  const boost = temp === 'hot' ? 1.2 : temp === 'warm' ? 1.0 : 0.7;
-  return Math.round((lead.revenueExpected || 0) * (lead.closingProbability || 0.2) * boost);
-}
-
-export function riskOfLoss(lead: Lead): 'alto' | 'médio' | 'baixo' {
-  const elapsed = (Date.now() - (lead.lastMsgTs || Date.now())) / 3600000;
-  const temp    = leadTemperature(computeEinsteinScore(lead));
-  if (temp === 'hot'  && elapsed > 24)  return 'alto';
-  if (temp === 'warm' && elapsed > 72)  return 'alto';
-  if (temp === 'cold' && elapsed > 168) return 'alto';
-  if (elapsed > 48)                     return 'médio';
-  return 'baixo';
+  if (temp === 'hot' && hours > 18)   return 'alto';
+  if (temp === 'warm' && hours > 48)  return 'médio';
+  if (hours > 96)                      return 'baixo';
+  return null;
 }
 
 export function closingAlert(lead: Lead): boolean {
-  return lead.closingProbability > 0.80 && leadTemperature(computeEinsteinScore(lead)) === 'hot';
+  return lead.closingProbability > 0.78 && leadTemperature(computeEinsteinScore(lead)) === 'hot';
 }
 
-export function followupScheduler(lead: Lead): FollowupResult | null {
-  const temp  = leadTemperature(computeEinsteinScore(lead));
-  const hours = (Date.now() - (lead.lastMsgTs || Date.now())) / 3600000;
-  if (hours > 120 && temp === 'cold') return { type:'reativacao', urgency:'critical', msg:`Reativação urgente — ${Math.round(hours/24)}d sem resposta` };
-  if (hours > 24  && temp === 'hot')  return { type:'urgente',    urgency:'critical', msg:'Lead quente esfriando — contato IMEDIATO' };
-  if (hours > 48  && temp === 'warm') return { type:'nutricao',   urgency:'high',     msg:'Enviar conteúdo relevante hoje' };
-  if (hours > 72  && temp === 'cold') return { type:'reativacao', urgency:'medium',   msg:'Sequência de reativação automática' };
+export function alertSystem(lead: Lead): AlertResult | null {
+  const es  = computeEinsteinScore(lead);
+  const temp = leadTemperature(es);
+  if (lead.closingProbability > 0.82 && temp === 'hot')
+    return { type:'imminent', msg:'🚨 Fechamento iminente', color:'#F43F5E', priority:1 };
+  if (riskOfLoss(lead) === 'alto')
+    return { type:'risk', msg:'⚠️ Em risco de perda', color:'#F59E0B', priority:2 };
+  if (lead.lifeEvent)
+    return { type:'life', msg:'🔔 Evento de vida', color:'#8B5CF6', priority:3 };
+  if (followupScheduler(lead)?.urgency === 'critical')
+    return { type:'followup', msg:'⚡ Follow-up urgente', color:'#F43F5E', priority:4 };
   return null;
 }
 
 export function nextBestAction(lead: Lead): NBAResult {
-  const score   = computeEinsteinScore(lead);
-  const temp    = leadTemperature(score);
-  const elapsed = (Date.now() - (lead.lastMsgTs || Date.now())) / 3600000;
-  const prob    = lead.closingProbability;
-
-  if (prob > 0.85 && temp === 'hot')
-    return { priority:'critical', action:'📞 LIGAR AGORA',          why:`${Math.round(prob*100)}% fechamento · Janela crítica`,           urgency:'immediate', icon:'🚨' };
-  if (temp === 'hot' && elapsed > 24)
-    return { priority:'high',     action:'📲 WhatsApp urgente',      why:'Lead quente sem resposta +24h — risco de perda',                 urgency:'today',     icon:'⚠️' };
-  if ((lead.memory?.offersMade?.length||0) > 0 && elapsed < 48)
-    return { priority:'high',     action:'📞 Follow-up proposta',    why:'Proposta enviada — momento ideal para follow-up',                urgency:'today',     icon:'📄' };
-  if (lead.visitScheduled && temp === 'warm')
-    return { priority:'medium',   action:'📅 Confirmar visita',      why:'Visita agendada — confirmar +24h aumenta show rate 42%',         urgency:'tomorrow',  icon:'🏠' };
-  if (temp === 'warm' && elapsed > 48)
-    return { priority:'medium',   action:'📧 Nutrição personalizada', why:'Warm lead em silêncio — reengajamento com conteúdo relevante',  urgency:'this_week', icon:'💌' };
+  const risk = riskOfLoss(lead);
+  if (lead.closingProbability > 0.85)
+    return { action:'📞 LIGAR AGORA', priority:'critical', why:'Probabilidade de fechamento acima de 85%' };
+  if (!lead.visitScheduled && leadTemperature(computeEinsteinScore(lead)) === 'hot')
+    return { action:'🏠 Agendar visita imediata', priority:'high', why:'Lead quente sem visita marcada' };
+  if (risk === 'alto')
+    return { action:'🚨 Follow-up urgente', priority:'high', why:'Risco de perda detectado — intervir agora' };
+  if (lead.intent === 'investimento')
+    return { action:'📊 Enviar análise ROI', priority:'medium', why:'Perfil investidor — decisão por dados' };
   if (lead.lifeEvent)
-    return { priority:'medium',   action:'🔔 Abordagem empática',    why:`Life event: ${lead.lifeEvent}`,                                  urgency:'this_week', icon:'🔔' };
-  return   { priority:'low',      action:'💬 Qualificação ativa',    why:'Lead em fase inicial — aprofundar qualificação',                 urgency:'when_possible', icon:'💬' };
+    return { action:'🤝 Abordagem empática contextual', priority:'medium', why:`Life event: ${lead.lifeEvent}` };
+  if (leadTemperature(computeEinsteinScore(lead)) === 'cold')
+    return { action:'📧 Campanha de nutrição 30d', priority:'low', why:'Lead frio — reativar com conteúdo' };
+  if (lead.fundingSimulated)
+    return { action:'📋 Encaminhar para banco parceiro', priority:'medium', why:'Simulação feita — próximo passo' };
+  return { action:'💬 Acompanhar plano atual', priority:'normal', why:'Pipeline saudável' };
 }
 
-export function alertSystem(lead: Lead): AlertResult | null {
-  if (closingAlert(lead))          return { type:'imminent', label:'🚨 FECHAR AGORA',      color:'#F43F5E' };
-  if (riskOfLoss(lead) === 'alto') return { type:'risk',     label:'⚠️ RISCO DE PERDA',    color:'#F59E0B' };
-  if (lead.lifeEvent)              return { type:'life',     label:'🔔 LIFE EVENT',         color:'#8B5CF6' };
-  const fs = followupScheduler(lead);
-  if (fs?.urgency === 'critical')  return { type:'followup', label:'📅 FOLLOW-UP CRÍTICO', color:'#F59E0B' };
+export function followupScheduler(lead: Lead): FollowupResult | null {
+  const hours = (Date.now() - (lead.lastMsgTs || Date.now())) / 3600000;
+  const temp  = leadTemperature(computeEinsteinScore(lead));
+  if (hours > 96)
+    return { type:'reativação', urgency:'high', msg:'Reativação urgente — lead sem contato >96h', daysAgo: Math.floor(hours/24) };
+  if (hours > 18 && temp === 'hot')
+    return { type:'urgente', urgency:'critical', msg:'Lead quente sem resposta >18h — intervir agora', daysAgo: Math.round(hours/24) };
+  if (hours > 48 && temp === 'warm')
+    return { type:'nutrição', urgency:'medium', msg:'Lead morno — nutrição com novo conteúdo', daysAgo: Math.round(hours/24) };
   return null;
+}
+
+export function weightedRevenue(lead: Lead): number {
+  const temp     = leadTemperature(computeEinsteinScore(lead));
+  const tempMult = temp === 'hot' ? 1.25 : temp === 'warm' ? 1.0 : 0.65;
+  return Math.round((lead.revenueExpected || 0) * (lead.closingProbability || 0.2) * tempMult);
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // MÓDULO 2.6 — MOTOR DE PERSUASÃO
-// SPIN Selling + Challenger Sale + Never Split the Difference
 // ─────────────────────────────────────────────────────────────────────
 
 export function persuasionStyle(lead: Lead): string {
-  if (lead.intent === 'investimento' && lead.budgetNum > 300000) return 'ROI';
-  if (lead.lifeEvent)                                            return 'empatia';
-  if (lead.budgetNum > 450000)                                   return 'exclusividade';
-  if (lead.partnerMentioned)                                     return 'casal';
-  return 'prático';
-}
-
-export function bestContactTime(lead: Lead): string {
-  const ch = lead.behavioralData?.preferredChannels || [];
-  if (ch.includes('email'))     return '9h–11h (email) · 19h–21h (WhatsApp)';
-  if (ch.includes('phone'))     return '10h–12h · 17h–19h (ligação)';
-  if (ch.includes('instagram')) return '19h–22h (Instagram/WhatsApp)';
-  return '18h–21h (WhatsApp)';
+  if (lead.intent === 'investimento' && lead.budgetNum >= 800000) return '💎 Exclusividade + Dados Premium';
+  if (lead.intent === 'investimento')  return '📊 ROI + Rentabilidade';
+  if (lead.lifeEvent)                  return '🤝 Empatia + Segurança Emocional';
+  if (lead.budgetNum >= 800000)        return '✨ Exclusividade + Valorização';
+  return '💬 Benefícios Práticos + Prazo';
 }
 
 export function followUpMessage(lead: Lead): string {
-  const name  = lead.name.split(' ')[0];
-  const style = persuasionStyle(lead);
-  if (lead.lifeEvent?.includes('Divórcio'))   return `Oi ${name}! 💙 Pensei em você — encontrei um imóvel perfeito para esse novo começo. Posso te mostrar?`;
-  if (lead.lifeEvent?.includes('emprego'))    return `Oi ${name}! Parabéns pela nova fase! Com sua nova renda, você se qualifica para opções ainda melhores. Posso atualizar sua simulação?`;
-  if (lead.lifeEvent?.includes('patrimônio')) return `Oi ${name}! Com o aumento do seu patrimônio, tenho uma oportunidade exclusiva que se encaixa perfeitamente. Podemos conversar?`;
-  if (lead.lifeEvent?.includes('empresa'))    return `${name}, sei que você encerrou um grande ciclo. Tenho um investimento imobiliário de alto rendimento para te apresentar. 5 minutos?`;
-  if (lead.intent === 'investimento')         return `Oi ${name}! Novo imóvel com yield 13,2% em Airbnb acabou de entrar. Sei que você valoriza rentabilidade — posso enviar os números?`;
-  if (style === 'exclusividade')              return `${name}, tenho um imóvel exclusivo que se encaixa perfeitamente. Tenho apenas uma janela hoje — posso reservar 15 min?`;
-  if (style === 'casal')                      return `Oi ${name}! Lembrei de vocês e encontrei uma opção perfeita para a família. Posso enviar as fotos?`;
-  return `Oi ${name}! 👋 Tenho novidades que podem te interessar muito. Podemos conversar rapidinho?`;
+  if (lead.intent === 'investimento') {
+    const roi = lead.code ? '14,5%' : '12%';
+    if (lead.lifeEvent) return `Pensei em você e encontrei uma oportunidade que pode transformar este momento em patrimônio consolidado. Yield de ${roi} a.a. com segurança real. Posso compartilhar?`;
+    return `Identifiquei novos dados de rentabilidade para o seu perfil. O mercado de ${lead.location} valorizou mais 2,3% este mês. Quer ver a simulação atualizada?`;
+  }
+  if (lead.temp === 'hot') return `Consegui uma condição especial exclusiva para o imóvel que você gostou. Disponível só até sexta. Posso explicar em 2 minutos?`;
+  if (lead.lifeEvent)      return `Encontrei algo que combina perfeitamente com sua nova fase. Uma oportunidade que raramente aparece. Posso compartilhar?`;
+  if (lead.temp === 'cold') return `Oi! Preparei um guia exclusivo com os 3 melhores imóveis do Litoral Norte SC agora. Completamente gratuito. Quer receber?`;
+  return `Vi novidades no mercado que combinam com o que você busca. Vale muito a pena conhecer! Me avisa se quiser?`;
+}
+
+export function bestContactTime(lead: Lead): string {
+  const h = new Date().getHours();
+  if (lead.behavioralData?.preferredChannels?.includes('whatsapp')) {
+    if (h >= 19 || h <= 8) return '⚡ Agora (horário ideal)';
+    if (h >= 12 && h <= 13) return '⚡ Agora (horário de almoço)';
+    return '📅 Das 19h às 21h (melhor horário)';
+  }
+  return '🕘 Horário comercial 9h–18h';
 }
 
 export function generateCallScript(lead: Lead): CallScript {
-  const name  = lead.name.split(' ')[0];
-  const style = persuasionStyle(lead);
-  const nba   = nextBestAction(lead);
+  const rep = leadReputation(lead);
   return {
-    abertura:     `Oi ${name}, tudo bem? Aqui é o Jorge Miguel Imóveis. Estou ligando porque ${nba.why.toLowerCase()}.`,
-    qualificacao: `Você ainda está procurando ${lead.propertyType?.toLowerCase() || 'imóvel'} em ${lead.location}? Sua preferência ainda é ${lead.intent === 'investimento' ? 'investimento com rentabilidade' : 'moradia própria'}?`,
-    proposta:     style === 'ROI'
-      ? `Tenho um imóvel com yield de 12% ao ano em Airbnb — R$ ${Math.round((lead.budgetNum||300000)*0.12/1000)}k/ano de renda passiva. Posso enviar a simulação?`
-      : style === 'exclusividade'
-      ? `Tenho uma oportunidade exclusiva que acabou de entrar. Poucos corretores têm acesso. Posso apresentar hoje?`
-      : `Encontrei uma opção que se encaixa no que você busca — ${lead.budget}, na região de ${lead.location}. Posso enviar as fotos?`,
-    fechamento:   `Quando seria o melhor momento para fazermos uma visita? Tenho disponibilidade ${lead.visitScheduled ? 'para confirmação' : 'ainda esta semana'}.`,
+    opening: `Bom ${new Date().getHours() < 12 ? 'dia' : new Date().getHours() < 18 ? 'tarde' : 'noite'}, ${lead.name.split(' ')[0]}! Aqui é o Jorge Miguel. Tudo bem? Liguei porque tenho uma novidade que vai te interessar muito.`,
+    qualification: lead.intent === 'investimento'
+      ? `Você ainda está buscando aquele investimento com yield acima de 12% no Litoral Norte? Porque surgiu uma oportunidade única.`
+      : `Você ainda está procurando o imóvel ideal para sua família em ${lead.location}?`,
+    pitch: lead.code
+      ? `O imóvel ${lead.code} que você viu tem exatamente o perfil que você busca. E tenho uma condição especial disponível só esta semana.`
+      : `Tenho ${lead.intent === 'investimento' ? '3 opções com yield de 12 a 16% ao ano' : '2 imóveis perfeitos para o que você está buscando'} dentro do seu orçamento.`,
+    objectionHandle: `Se você tiver qualquer dúvida sobre ${lead.memory?.objections?.[0] || 'condições'}, já tenho todas as respostas preparadas para você.`,
+    cta: `Você tem 15 minutinhos agora para eu te mostrar isso? Ou prefere que eu te mande pelo WhatsApp primeiro?`,
+    tier: rep.tier,
   };
 }
 
 export function generateVideoScript(lead: Lead): VideoScript {
-  const name = lead.name.split(' ')[0];
-  const recs  = recommendProperties(lead, 1);
-  const prop  = recs[0];
+  const roi = lead.code ? calculateInvestmentROI(PROPERTIES.find(p => p.code === lead.code) || PROPERTIES[0]) : null;
   return {
-    hook:      `${name}, em 60 segundos vou te mostrar ${lead.intent === 'investimento' ? 'como gerar renda passiva com imóvel' : 'o lar perfeito para você e sua família'}.`,
-    problema:  `Muita gente passa meses procurando sem encontrar o imóvel ideal por falta de critérios claros. Já ajudei mais de 200 famílias em Santa Catarina.`,
-    solucao:   prop
-      ? `Esse é o ${prop.title}, em ${prop.city}, a ${prop.beach} da praia.${prop.airbnb ? ` Yield de ${prop.yield}% ao ano em Airbnb.` : ''} R$ ${(prop.price/1000).toFixed(0)}k.`
-      : `Temos opções exclusivas em ${lead.location} a partir de ${lead.budget}.`,
-    cta:       `Me chama no WhatsApp agora: (47) 98916-0113. Agenda a visita e garante as condições especiais de lançamento.`,
-    hashtags:  `#ImóveisLitoralSC #${(lead.location||'LitoralSC').replace(/\s/g,'')} #JorgeMiguelImóveis #${lead.intent==='investimento'?'InvestimentoImobiliário':'PrimeiroImóvel'}`,
+    hook: `${lead.name.split(' ')[0]}, vim te mostrar algo que pode mudar seus planos para ${new Date().getFullYear()}...`,
+    context: `Sou o Jorge Miguel, corretor especialista em imóveis premium no Litoral Norte de SC. Separei isso especialmente para você.`,
+    offer: lead.intent === 'investimento'
+      ? `Este imóvel gera ${roi ? roi.netYield + '%' : '14%'} de yield líquido — R$ ${roi ? (roi.monthlyRent/1000).toFixed(1) : '7'}k por mês de renda passiva.`
+      : `Este imóvel tem tudo que você me disse que precisava: localização, tamanho e dentro do seu orçamento.`,
+    proof: `O mercado do Litoral Norte SC valoriza entre 18 e 24% ao ano. Os melhores imóveis somem rápido.`,
+    cta: `Responde aqui no WhatsApp "QUERO VER" que eu te mando o book completo com fotos, planta e análise financeira. Hoje mesmo! 👇`,
+    duration: '45-60 segundos',
   };
 }
 
-export function generateNewsletterContent(lead: Lead): string {
-  const name     = lead.name.split(' ')[0];
-  const insights = getNeighborhoodInsights(lead.location);
-  return `Oi ${name}! Separei 3 informações sobre ${lead.location} que podem te interessar:\n\n📈 Valorização 12 meses: +${insights.appreciation12m}%\n🏖 Ocupação Airbnb: ${insights.airbnbOccupancy}%\n💰 Média m²: R$ ${insights.avgM2.toLocaleString()}\n\nEncontre sua oportunidade: (47) 98916-0113`;
-}
-
 // ─────────────────────────────────────────────────────────────────────
-// MÓDULO 2.7 — LIFE EVENT ENGINE (Exclusivo IMOVAI)
+// MÓDULO 2.7 — LIFE EVENT ENGINE
 // ─────────────────────────────────────────────────────────────────────
 
-export function lifeEventHint(event: string | null): string | null {
-  if (!event) return null;
-  const ev = event.toLowerCase();
-  if (ev.includes('emprego'))    return '💼 Nova renda = novo poder de compra. Atualizar simulação AGORA.';
-  if (ev.includes('divórcio'))   return '💙 Momento de reconstrução. Prioridade = novo lar. Linguagem acolhedora.';
-  if (ev.includes('patrimônio')) return '💰 Aumento de patrimônio = maior ticket. Apresentar opções premium.';
-  if (ev.includes('empresa'))    return '🚀 Capital liberado = investidor prime. Foco em portfolio e ROI.';
-  if (ev.includes('filho') || ev.includes('bebê')) return '👶 Expansão familiar = necessidade de espaço. Focar 2+ dorms.';
-  return '🔔 Life event detectado — personalizar abordagem imediatamente.';
+export function lifeEventHint(lifeEvent: string | null): string | null {
+  if (!lifeEvent) return null;
+  const e = lifeEvent.toLowerCase();
+  if (e.includes('emprego') || e.includes('empresa'))
+    return 'Verificar nova capacidade de renda e elegibilidade para financiamento melhorado';
+  if (e.includes('patrimônio') || e.includes('herança') || e.includes('venda'))
+    return 'Capital disponível → oportunidade de upgrade imobiliário com yield';
+  if (e.includes('divórcio') || e.includes('separação'))
+    return 'Necessidade urgente de moradia própria — prioridade emocional e prática';
+  if (e.includes('casamento') || e.includes('noivado'))
+    return 'Planejamento familiar → ideal para imóvel maior ou primeiro imóvel conjunto';
+  if (e.includes('filho') || e.includes('bebê') || e.includes('gravidez'))
+    return 'Família crescendo → necessidade de mais espaço e segurança de localização';
+  if (e.includes('aposentadoria') || e.includes('aposentou'))
+    return 'Renda passiva torna-se prioridade → investimento em imóvel turístico ideal';
+  return 'Oportunidade detectada — abordagem contextual personalizada recomendada';
 }
 
 export function lifeEventApproach(lead: Lead): string {
-  const name = lead.name.split(' ')[0];
-  if (!lead.lifeEvent) return followUpMessage(lead);
-  if (lead.lifeEvent.includes('Divórcio'))   return `Oi ${name} 💙 Sei que recomeços exigem coragem. Encontrei um imóvel que pode ser o novo capítulo da sua história.`;
-  if (lead.lifeEvent.includes('emprego'))    return `Oi ${name}! Essa mudança de carreira abre novas possibilidades. Atualizei sua simulação com a nova renda. Posso enviar?`;
-  if (lead.lifeEvent.includes('patrimônio')) return `${name}, com esse crescimento você se qualifica para oportunidades exclusivas. Tenho algo específico para você.`;
-  if (lead.lifeEvent.includes('empresa'))    return `${name}, parabéns pelo grande passo! Capital em imóvel de alto padrão é a decisão mais inteligente agora.`;
-  return followUpMessage(lead);
+  if (!lead.lifeEvent) return '';
+  const e = lead.lifeEvent.toLowerCase();
+  if (e.includes('patrimônio') || e.includes('empresa'))
+    return `Você acabou de ter um evento financeiro significativo. Investir parte disso em imóvel no Litoral Norte é proteger seu patrimônio com yield de até 16% ao ano.`;
+  if (e.includes('casamento'))
+    return `Parabéns pelo casamento! Que tal garantir o primeiro imóvel do casal? Temos opções perfeitas para quem está começando uma nova fase.`;
+  if (e.includes('divórcio'))
+    return `Entendo que você está em uma fase de transição. Posso te ajudar a encontrar um imóvel que seja um recomeço sólido — no seu ritmo.`;
+  return `Vi que você está passando por uma mudança importante. Posso te ajudar a transformar esse momento em uma decisão patrimonial inteligente?`;
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// ANALYTICS ENGINE
-// Salesforce + HubSpot Revenue Analytics
+// MÓDULO 2.8 — RADAR DE INVESTIDORES (NOVO v12)
 // ─────────────────────────────────────────────────────────────────────
 
-export function analyticsEngine(leads: Lead[]): AnalyticsData {
-  const inPipeline = leads.filter(l => !['fechado','perdido'].includes(l.status));
-  const weighted   = inPipeline.reduce((sum, l) => {
-    const temp  = leadTemperature(computeEinsteinScore(l));
-    const boost = temp === 'hot' ? 1.2 : temp === 'warm' ? 1.0 : 0.7;
-    return sum + l.revenueExpected * l.closingProbability * boost;
-  }, 0);
-  const cacBySource = ['instagram','google','indicacao','trafego_pago','organico'].map(src => {
-    const group = leads.filter(l => l.source === src);
-    const rev   = group.filter(l => l.status === 'fechado').reduce((s,l) => s + l.revenueExpected, 0);
-    return { src, cnt:group.length, revenue:rev, roi:group.length > 0 ? Math.round(rev / (group.length * 80)) : 0 };
-  }).filter(s => s.cnt > 0);
+export function investorRadar(lead: Lead): { score: number; signals: string[]; recommendation: string } {
+  const signals: string[] = [];
+  let score = 0;
+
+  if (lead.intent === 'investimento')           { signals.push('✅ Perfil declarado: investidor'); score += 30; }
+  if (lead.budgetNum >= 500000)                  { signals.push(`✅ Budget premium: ${lead.budget}`); score += 25; }
+  if (lead.incomeNum >= 15000)                   { signals.push(`✅ Renda qualificada: ${lead.income}`); score += 15; }
+  if (lead.fundingSimulated)                     { signals.push('✅ Simulou financiamento'); score += 10; }
+  if (lead.lifeEvent?.includes('patrimônio'))    { signals.push('✅ Life event: patrimônio cresceu'); score += 15; }
+  if ((lead.memory?.propertiesViewed?.length||0) > 2) { signals.push('✅ Comparou múltiplos imóveis'); score += 10; }
+  if ((lead.behavioralData?.siteVisits||0) > 5)  { signals.push('✅ Alto engajamento digital'); score += 8; }
+  if ((lead.behavioralData?.emailOpenRate||0) > 0.8) { signals.push('✅ Taxa de abertura >80%'); score += 7; }
+
+  const rec = score >= 80 ? 'PRIME: Apresentar portfólio completo + análise ROI personalizada'
+            : score >= 55 ? 'QUALIFICADO: Enviar top 3 imóveis por yield + simulação'
+            : 'POTENCIAL: Nutrir com conteúdo de valorização e cases';
+
+  return { score: Math.min(score, 100), signals, recommendation: rec };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// MÓDULO 2.9 — PREVISÃO DE VALORIZAÇÃO (NOVO v12)
+// ─────────────────────────────────────────────────────────────────────
+
+export function valuationForecast(property: Property): {
+  current: number; y1: number; y3: number; y5: number;
+  bestMonth: string; recommendation: string;
+} {
+  const nb    = getNeighborhoodInsights(property.city);
+  const rate1 = nb.appreciation12m / 100;
+  const rate3 = Math.pow(1 + rate1 * 0.9, 3) - 1;
+  const rate5 = Math.pow(1 + rate1 * 0.8, 5) - 1;
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const peak = nb.airbnbOccupancy > 80 ? 'Jan–Mar (temporada alta)' : 'Nov–Jan';
+
   return {
-    weightedPipeline:      Math.round(weighted),
-    avgDealSize:           inPipeline.length > 0 ? Math.round(inPipeline.reduce((s,l)=>s+l.revenueExpected,0)/inPipeline.length) : 0,
-    conversionRate:        Math.round((leads.filter(l=>['proposta','fechado'].includes(l.status)).length / leads.length) * 100),
-    avgCloseTime:          18,
-    cacBySource,
-    totalLeads:            leads.length,
-    hotLeads:              leads.filter(l=>leadTemperature(computeEinsteinScore(l))==='hot').length,
-    warmLeads:             leads.filter(l=>leadTemperature(computeEinsteinScore(l))==='warm').length,
-    coldLeads:             leads.filter(l=>leadTemperature(computeEinsteinScore(l))==='cold').length,
-    totalRevenuePotential: leads.reduce((s,l)=>s+l.revenueExpected,0),
-    forecastThisMonth:     Math.round(weighted * 0.4),
+    current:       property.price,
+    y1:            Math.round(property.price * (1 + rate1)),
+    y3:            Math.round(property.price * (1 + rate3)),
+    y5:            Math.round(property.price * (1 + rate5)),
+    bestMonth:     peak,
+    recommendation: nb.supplyTrend === 'escasso' ? '🔥 Comprar agora — oferta limitada e demanda crescente' : '📊 Bom momento — mercado aquecido',
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// FUNÇÃO MESTRE — enrichLead()
-// Zero recursão · Orquestra todos os 7 módulos
+// MÓDULO 2.10 — ANALYTICS ENGINE
+// ─────────────────────────────────────────────────────────────────────
+
+export function analyticsEngine(leads: Lead[]): AnalyticsData {
+  const enriched   = leads.map(l => ({ ...l, _e: enrichLead(l) }));
+  const hot        = enriched.filter(l => l._e.derivedTemp === 'hot');
+  const warm       = enriched.filter(l => l._e.derivedTemp === 'warm');
+  const cold       = enriched.filter(l => l._e.derivedTemp === 'cold');
+  const proposals  = leads.filter(l => ['proposta','fechado'].includes(l.status));
+  const closed     = leads.filter(l => l.status === 'fechado');
+  const avgDealSize = closed.length > 0
+    ? Math.round(closed.reduce((s, l) => s + l.revenueExpected, 0) / closed.length)
+    : Math.round(leads.reduce((s,l) => s + l.revenueExpected, 0) / Math.max(leads.length, 1));
+
+  const bySource = leads.reduce<Record<string, Lead[]>>((acc, l) => {
+    acc[l.source] = [...(acc[l.source] || []), l];
+    return acc;
+  }, {});
+
+  const cacBySource = Object.entries(bySource).map(([src, srcLeads]) => {
+    const rev = srcLeads.reduce((s, l) => s + l.revenueExpected, 0);
+    const weighted = srcLeads.reduce((s, l) => s + weightedRevenue(l), 0);
+    return { src, cnt: srcLeads.length, revenue: rev, weighted, roi: Math.round(rev / Math.max(srcLeads.length, 1) / 1000) };
+  });
+
+  const weightedPipeline    = leads.reduce((s, l) => s + weightedRevenue(l), 0);
+  const totalRevenuePotential = leads.reduce((s, l) => s + l.revenueExpected, 0);
+  const conversionRate      = Math.round((proposals.length / Math.max(leads.length, 1)) * 100);
+  const forecastThisMonth   = Math.round(weightedPipeline * 0.35);
+
+  return {
+    totalLeads: leads.length, hotLeads: hot.length, warmLeads: warm.length, coldLeads: cold.length,
+    avgDealSize, avgCloseTime: 14, cacBySource, conversionRate,
+    weightedPipeline, totalRevenuePotential, forecastThisMonth,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// ORQUESTRADOR — enrichLead()
 // ─────────────────────────────────────────────────────────────────────
 
 export function enrichLead(lead: Lead): EnrichedLead {
@@ -457,21 +532,13 @@ export function enrichLead(lead: Lead): EnrichedLead {
   const breezeScore     = computeBreezeScore(lead);
   const derivedTemp     = leadTemperature(predictiveScore);
   const bScore          = behavioralScore(lead.behavioralData);
-  const prob            = lead.closingProbability || 0.2;
+  const prob            = lead.closingProbability ?? (predictiveScore > 85 ? 0.75 : predictiveScore > 70 ? 0.50 : 0.20);
   const risk            = riskOfLoss(lead);
   const imminentClose   = closingAlert(lead);
   const nba             = nextBestAction(lead);
   const followup        = followupScheduler(lead);
   const alert           = alertSystem(lead);
   const revenueValue    = weightedRevenue(lead);
-  const priorityScore   = predictiveScore * prob * (derivedTemp==='hot'?1.5:derivedTemp==='warm'?1.0:0.5);
-  const recommendations = recommendProperties(lead);
-  const closeDate       = predictCloseDate(lead);
-  const channel         = (lead.behavioralData?.preferredChannels||['whatsapp'])[0];
-  const style           = persuasionStyle(lead);
-  const bestTime        = bestContactTime(lead);
-  const followUpMsg     = followUpMessage(lead);
-  const lifeHint        = lifeEventHint(lead.lifeEvent);
   const icp             = icpMatch(lead);
   const reputation      = leadReputation(lead);
   const velocity        = lead.dealVelocity || 0;
@@ -479,11 +546,22 @@ export function enrichLead(lead: Lead): EnrichedLead {
   const callScript      = generateCallScript(lead);
   const videoScript     = generateVideoScript(lead);
   const neighborhood    = getNeighborhoodInsights(lead.location);
+  const recommendations = recommendProperties(lead);
+  const closeDate       = derivedTemp === 'hot' && prob > 0.7 ? 'Próximos 3 dias' : derivedTemp === 'warm' ? '7–14 dias' : '30+ dias';
+  const priorityScore   = (predictiveScore * (derivedTemp === 'hot' ? 1.5 : derivedTemp === 'warm' ? 1.1 : 0.65)) + (revenueValue / 8000);
+  const investor        = investorRadar(lead);
+
   return {
-    predictiveScore, breezeScore, derivedTemp, bScore, prob,
-    risk, imminentClose, nba, followup, alert,
-    revenueValue, priorityScore, recommendations, closeDate,
-    channel, style, bestTime, followUpMsg, lifeHint,
-    icp, reputation, velocity, docStatus, callScript, videoScript, neighborhood,
+    ...lead,
+    predictiveScore, breezeScore, derivedTemp, bScore, prob, risk,
+    imminentClose, nba, followup, alert, revenueValue, icp, reputation,
+    velocity, docStatus, callScript, videoScript, neighborhood,
+    recommendations, closeDate, priorityScore,
+    channel:      lead.behavioralData?.preferredChannels?.[0] || 'whatsapp',
+    style:        persuasionStyle(lead),
+    bestTime:     bestContactTime(lead),
+    followUpMsg:  followUpMessage(lead),
+    lifeHint:     lifeEventHint(lead.lifeEvent || null),
+    investor,
   };
 }

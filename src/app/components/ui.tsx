@@ -104,7 +104,7 @@ export const NBAChip = memo(({ nba }: { nba: EnrichedLead['nba'] }) => {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 8px',
       background:`${c}12`, border:`1px solid ${c}25`, borderRadius:6 }}>
-      <span style={{ fontSize:11 }}>{nba.icon}</span>
+      <span style={{ fontSize:11 }}>{nba.priority === "critical" ? "🚨" : nba.priority === "high" ? "⚠️" : "💡"}</span>
       <div>
         <div style={{ fontSize:9, fontWeight:700, color:c }}>{nba.action}</div>
         <div style={{ fontSize:8, color:T.textSoft, marginTop:1 }}>{nba.why}</div>
@@ -260,10 +260,10 @@ export function ScriptModal({ lead, type, onClose }: {
         {type === 'call' ? (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {([
-              ['🎯 Abertura', callScript.abertura, T.accent],
-              ['❓ Qualificação', callScript.qualificacao, T.violet],
-              ['💡 Proposta', callScript.proposta, T.emerald],
-              ['🤝 Fechamento', callScript.fechamento, T.gold],
+              ['🎯 Abertura', callScript.opening, T.accent],
+              ['❓ Qualificação', callScript.qualification, T.violet],
+              ['💡 Pitch', callScript.pitch, T.emerald],
+              ['🤝 CTA', callScript.cta, T.gold],
             ] as [string, string, string][]).map(([label, text, color]) => (
               <div key={label} style={{ background:T.card, borderRadius:8, padding:12, border:`1px solid ${color}20` }}>
                 <div style={{ fontSize:9, color, fontWeight:700, marginBottom:6 }}>{label}</div>
@@ -274,10 +274,10 @@ export function ScriptModal({ lead, type, onClose }: {
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {([
-              ['🪝 Hook (0–5s)',       videoScript.hook,      T.rose],
-              ['😟 Problema (5–20s)',  videoScript.problema,  T.amber],
-              ['✅ Solução (20–45s)',  videoScript.solucao,   T.emerald],
-              ['📲 CTA (45–60s)',      videoScript.cta,       T.accent],
+              ['🪝 Hook (0–5s)',       videoScript.hook,    T.rose],
+              ['🎬 Contexto',          videoScript.context, T.amber],
+              ['✅ Oferta',            videoScript.offer,   T.emerald],
+              ['📲 CTA (final)',        videoScript.cta,     T.accent],
             ] as [string, string, string][]).map(([label, text, color]) => (
               <div key={label} style={{ background:T.card, borderRadius:8, padding:12, border:`1px solid ${color}20` }}>
                 <div style={{ fontSize:9, color, fontWeight:700, marginBottom:6 }}>{label}</div>
@@ -285,8 +285,8 @@ export function ScriptModal({ lead, type, onClose }: {
               </div>
             ))}
             <div style={{ background:T.card, borderRadius:8, padding:12, border:`1px solid ${T.violet}20` }}>
-              <div style={{ fontSize:9, color:T.violet, fontWeight:700, marginBottom:6 }}>#️⃣ Hashtags</div>
-              <div style={{ fontSize:9, color:T.textSoft }}>{videoScript.hashtags}</div>
+              <div style={{ fontSize:9, color:T.violet, fontWeight:700, marginBottom:6 }}>⏱ Duração</div>
+              <div style={{ fontSize:9, color:T.textSoft }}>{videoScript.duration}</div>
             </div>
           </div>
         )}
